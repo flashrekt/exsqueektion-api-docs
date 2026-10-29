@@ -1,0 +1,145 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Exsqueektion integrations v1 responses and webhook event",
+  "oneOf": [
+    { "$ref": "#/$defs/leaderboard" },
+    { "$ref": "#/$defs/results" },
+    { "$ref": "#/$defs/player" },
+    { "$ref": "#/$defs/status" },
+    { "$ref": "#/$defs/event" },
+    { "$ref": "#/$defs/error" }
+  ],
+  "$defs": {
+    "uint": { "type": "integer", "minimum": 0 },
+    "nullableTime": { "type": ["integer", "null"], "minimum": 0 },
+    "version": { "type": "integer", "minimum": 1, "maximum": 99 },
+    "mode": { "enum": ["practice", "live"] },
+    "address": { "type": "string", "pattern": "^0x[0-9a-fA-F]{40}$" },
+    "runId": { "type": "string", "format": "uuid" },
+    "season": {
+      "type": "object", "additionalProperties": false,
+      "required": ["scoringVersion", "fromGenerator"],
+      "properties": {
+        "scoringVersion": { "$ref": "#/$defs/version" },
+        "fromGenerator": { "$ref": "#/$defs/version" }
+      }
+    },
+    "score": {
+      "type": "object", "additionalProperties": false,
+      "required": ["total", "haul", "killPoints", "expeditionKillPoints", "renewableKillPoints"],
+      "properties": {
+        "total": { "$ref": "#/$defs/uint" }, "haul": { "$ref": "#/$defs/uint" },
+        "killPoints": { "$ref": "#/$defs/uint" }, "expeditionKillPoints": { "$ref": "#/$defs/uint" },
+        "renewableKillPoints": { "$ref": "#/$defs/uint" }
+      }
+    },
+    "result": {
+      "type": "object", "additionalProperties": false,
+      "required": ["runId", "address", "mode", "outcome", "startedAt", "completedAt", "activeTicks", "scoringVersion", "generatorVersion", "score"],
+      "properties": {
+        "runId": { "$ref": "#/$defs/runId" }, "address": { "$ref": "#/$defs/address" },
+        "mode": { "$ref": "#/$defs/mode" }, "outcome": { "enum": ["extracted", "lost"] },
+        "startedAt": { "$ref": "#/$defs/uint" }, "completedAt": { "$ref": "#/$defs/uint" },
+        "activeTicks": { "$ref": "#/$defs/uint" }, "scoringVersion": { "$ref": "#/$defs/version" },
+        "generatorVersion": { "$ref": "#/$defs/version" }, "score": { "$ref": "#/$defs/score" }
+      }
+    },
+    "entry": {
+      "type": "object", "additionalProperties": false,
+      "required": ["rank", "completedRuns", "bestResult"],
+      "properties": {
+        "rank": { "type": "integer", "minimum": 1 },
+        "completedRuns": { "$ref": "#/$defs/uint" }, "bestResult": { "$ref": "#/$defs/result" }
+      }
+    },
+    "leaderboard": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schemaVersion", "mode", "sort", "season", "asOf", "entries"],
+      "properties": {
+        "schemaVersion": { "const": 1 }, "mode": { "$ref": "#/$defs/mode" }, "sort": { "const": "score" },
+        "season": { "$ref": "#/$defs/season" }, "asOf": { "$ref": "#/$defs/uint" },
+        "entries": { "type": "array", "maxItems": 50, "items": { "$ref": "#/$defs/entry" } }
+      }
+    },
+    "results": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schemaVersion", "mode", "asOf", "results", "nextCursor"],
+      "properties": {
+        "schemaVersion": { "const": 1 }, "mode": { "$ref": "#/$defs/mode" }, "asOf": { "$ref": "#/$defs/uint" },
+        "results": { "type": "array", "maxItems": 50, "items": { "$ref": "#/$defs/result" } },
+        "nextCursor": { "type": ["string", "null"], "pattern": "^[A-Za-z0-9_-]{1,256}$" }
+      }
+    },
+    "lifetime": {
+      "type": "object", "additionalProperties": false,
+      "required": ["completedRuns", "extractedRuns", "lostRuns", "bankedHaul", "bankedKillPoints"],
+      "properties": {
+        "completedRuns": { "$ref": "#/$defs/uint" }, "extractedRuns": { "$ref": "#/$defs/uint" },
+        "lostRuns": { "$ref": "#/$defs/uint" }, "bankedHaul": { "$ref": "#/$defs/uint" },
+        "bankedKillPoints": { "$ref": "#/$defs/uint" }
+      }
+    },
+    "player": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schemaVersion", "season", "asOf", "address", "mode", "lifetime", "bestResult"],
+      "properties": {
+        "schemaVersion": { "const": 1 }, "season": { "$ref": "#/$defs/season" }, "asOf": { "$ref": "#/$defs/uint" },
+        "address": { "$ref": "#/$defs/address" }, "mode": { "$ref": "#/$defs/mode" },
+        "lifetime": { "$ref": "#/$defs/lifetime" }, "bestResult": { "oneOf": [{ "$ref": "#/$defs/result" }, { "type": "null" }] }
+      }
+    },
+    "game": {
+      "type": "object", "additionalProperties": false,
+      "required": ["state", "observedAt", "ageMs", "staleAfterMs", "activeRuns", "connectedPlayers", "faultedRuns"],
+      "properties": {
+        "state": { "enum": ["starting", "available", "stale", "unavailable"] },
+        "observedAt": { "$ref": "#/$defs/nullableTime" }, "ageMs": { "$ref": "#/$defs/nullableTime" },
+        "staleAfterMs": { "const": 5000 }, "connectedPlayers": { "$ref": "#/$defs/uint" }, "faultedRuns": { "$ref": "#/$defs/uint" },
+        "activeRuns": {
+          "type": "object", "additionalProperties": false, "required": ["practice", "live"],
+          "properties": { "practice": { "$ref": "#/$defs/uint" }, "live": { "$ref": "#/$defs/uint" } }
+        }
+      }
+    },
+    "wheel": {
+      "type": "object", "additionalProperties": false,
+      "required": ["state", "availability", "observedAt", "ageMs", "expiresAt", "qualifying"],
+      "properties": {
+        "state": { "enum": ["running", "stopped", "unknown"] }, "availability": { "enum": ["available", "stale", "unavailable"] },
+        "observedAt": { "$ref": "#/$defs/nullableTime" }, "ageMs": { "$ref": "#/$defs/nullableTime" },
+        "expiresAt": { "$ref": "#/$defs/nullableTime" }, "qualifying": { "type": "boolean" }
+      }
+    },
+    "status": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schemaVersion", "serverTime", "game", "wheel", "modes"],
+      "properties": {
+        "schemaVersion": { "const": 1 }, "serverTime": { "$ref": "#/$defs/uint" },
+        "game": { "$ref": "#/$defs/game" }, "wheel": { "$ref": "#/$defs/wheel" },
+        "modes": {
+          "type": "object", "additionalProperties": false, "required": ["practiceAvailable", "liveAvailable"],
+          "properties": { "practiceAvailable": { "type": "boolean" }, "liveAvailable": { "type": "boolean" } }
+        }
+      }
+    },
+    "event": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schemaVersion", "id", "type", "timestamp", "runId", "result"],
+      "properties": {
+        "schemaVersion": { "const": 1 }, "id": { "type": "string", "pattern": "^game\\.result\\.v1:[0-9a-f-]{36}$" },
+        "type": { "const": "game.result.finalized" }, "timestamp": { "$ref": "#/$defs/uint" },
+        "runId": { "$ref": "#/$defs/runId" }, "result": { "$ref": "#/$defs/result" }
+      }
+    },
+    "error": {
+      "type": "object", "additionalProperties": false, "required": ["schemaVersion", "error"],
+      "properties": {
+        "schemaVersion": { "const": 1 },
+        "error": {
+          "type": "object", "additionalProperties": false, "required": ["code"],
+          "properties": { "code": { "enum": ["unauthorized", "invalid_query", "not_found", "method_not_allowed", "rate_limited", "unavailable"] } }
+        }
+      }
+    }
+  }
+}
